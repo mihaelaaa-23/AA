@@ -1,0 +1,120 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 5%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: auto;
+  }
+
+* {
+    margin: 0;
+    padding: 0;
+}
+  
+.container {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+  height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.output-section {
+  flex: 2; /* Takes 2/3 of the space */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+
+.menu-section {
+  flex: 1; /* Takes 1/3 of the space */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 20px;
+  border-left: 2px solid #ccc;
+  min-width: 300px;
+}
+  
+  h1 {
+    margin-bottom: 20px;
+  }
+  
+  .controls {
+    margin-bottom: 20px;
+  }
+  
+  .controls label {
+    padding: 0px;
+    display: block;
+    margin: 10px 0 5px;
+
+  }
+
+  .controls input{
+    padding: 10px;
+    margin: 10px 5px 0;
+    width: 95%;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+  }
+  
+  .controls select, .controls button {
+    padding: 10px;
+    margin: 10px 5px 0;
+    width: 100%;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+  }
+  
+  .controls button {
+    background-color: #a72889;
+    color: white;
+    cursor: pointer;
+  }
+  
+  .controls button:hover {
+    background-color: #a72889;
+  }
+  
+  .visualization {
+    width: 90%;
+    min-height: 300px;
+    background-color: #f8f9fa;
+    border: 1px solid #ccc;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    padding: 10px;
+    padding-top: 10%;
+    overflow-x: auto;
+}
+
+#arrayBars {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden; 
+    border: none; 
+}
+
+
+
+.bar {
+    background-color: #00BFFF;
+    transition: height 0.3s, background-color 0.3s, width 0.3s;
+    display: inline-block;
+    vertical-align: bottom;
+    border-radius: 3px;
+}
