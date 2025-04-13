@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Graph Traversal</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      font-family: sans-serif;
+    }
+
+    #controls {
+      padding: 10px;
+      background: #f4f4f4;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #graph {
+      width: 100%;
+      height: calc(100%); /* restul paginii sub butoane */
+      display: block;
+    }
+
+    button, select {
+      padding: 5px 10px;
+    }
+  </style>
+</head>
+<body>
+<h2><center>Graph Traversal Visualizer (DFS / BFS)</center></h2>
+  <div id="controls">
+    <label>Graph Type:
+      <select id="graphType">
+        <option value="finite">finite</option>
+        <option value="infinite">infinite</option>
+        <option value="trivial">trivial</option>
+        <option value="null">null</option>
+        <option value="complete">complete</option>
+        <option value="tree">tree</option>
+        <option value="sparse">sparse</option>
+        <option value="dense">dense</option>
+        <option value="bipartite">bipartite</option>
+        <option value="cyclic">cyclic</option>
+        <option value="acyclic">acyclic</option>
+        <option value="regular">regular</option>
+        <option value="weighted">weighted</option>
+        <option value="directed">directed</option>
+        <option value="multigraph">multigraph</option>
+        <option value="pseudograph">pseudograph</option>
+      </select>
+    </label>
+<!--    <label>Algorithm:-->
+<!--      <select id="algorithm">-->
+<!--        <option value="DFS">DFS</option>-->
+<!--        <option value="BFS">BFS</option>-->
+<!--      </select>-->
+<!--    </label>-->
+    <label>Number of Nodes:
+      <select id="nodeCount">
+        <option value="5">5</option>
+        <option value="10" selected>10</option>
+        <option value="15">15</option>
+        <option value="20">20</option>
+        <option value="30">30</option>
+      </select>
+    </label>
+
+    <button onclick="generateGraph()">Generate Graph</button>
+    <button onclick="runTraversal('DFS')">Run DFS</button>
+    <button onclick="runTraversal('BFS')">Run BFS</button>
+    <button onclick="resetGraph()">Reset Graph</button>
+  </div>
+  <svg id="graph" width="800" height="600"></svg>
+  <script src="/static/js/graph.js"></script>
+</body>
+</html>
