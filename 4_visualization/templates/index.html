@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Graph Visualizer — Dijkstra & Floyd</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body { margin: 0; font-family: sans-serif; }
+    #controls { padding: 10px; background: #f4f4f4; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    #graph { width: 100%; height: calc(100vh - 60px); display: block; }
+    button, select, input { padding: 5px 10px; }
+  </style>
+</head>
+<body>
+  <h2 style="text-align:center;">Graph Visualizer — Dijkstra & Floyd</h2>
+  <div id="controls">
+    <label>Graph Type:
+      <select id="graphType">
+        <option value="sparse">Sparse</option>
+        <option value="dense">Dense</option>
+        <option value="directed-sparse">Directed Sparse</option>
+        <option value="directed-dense">Directed Dense</option>
+      </select>
+    </label>
+<!--    <label>Nodes:-->
+<!--      <input type="number" id="nodes" value="10" min="3" max="30" />-->
+<!--    </label>-->
+
+    <label>Number of Nodes:
+      <select id="nodeCount">
+        <option value="5" selected>5</option>
+        <option value="10">10</option>
+        <option value="15">15</option>
+        <option value="20">20</option>
+        <option value="30">30</option>
+      </select>
+    </label>
+
+    <button onclick="generateGraph()">Generate</button>
+    <button onclick="runTraversal('dijkstra')">Run Dijkstra</button>
+    <button onclick="runTraversal('floyd')">Run Floyd–Warshall</button>
+    <button onclick="resetGraph()">Reset</button>
+  </div>
+  <svg id="graph" width="1000" height="600"></svg>
+
+  <!-- Make sure the script path is correct -->
+  <script src="static/js/graph.js"></script>
+</body>
+</html>
