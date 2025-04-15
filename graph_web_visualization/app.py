@@ -3,6 +3,7 @@ import random
 
 app = Flask(__name__)
 
+
 def generate_graph(graph_type, size):
     graph = {i: [] for i in range(size)}
     if graph_type == "finite":
@@ -107,48 +108,75 @@ def generate_graph(graph_type, size):
     return graph
 
 
-def traverse(graph, start, algorithm):
+def traverse(graph, start, algorithm, graph_type=None):
     visited = []
     used_edges = []
     checked_edges = []
-    if algorithm == "DFS":
-        stack = [(start, None)]
-        seen = set()
-        while stack:
-            node, from_node = stack.pop()
+
+    # Handle directed vs undirected graphs
+    is_directed = graph_type in ["directed", "acyclic"]
+
+    # Set to keep track of visited nodes
+    seen = set()
+
+    # Function to perform traversal from a specified node
+    def traverse_from_node(node):
+        nonlocal visited, used_edges, checked_edges, seen
+
+        if algorithm == "DFS":
+            stack = [(node, None)]
+            while stack:
+                current, from_node = stack.pop()
+                if current not in seen:
+                    visited.append(current)
+                    if from_node is not None:
+                        used_edges.append((from_node, current))
+                    seen.add(current)
+                    neighbors = graph[current]
+                    for neighbor in reversed(neighbors):
+                        n = neighbor[0] if isinstance(neighbor, tuple) else neighbor
+                        checked_edges.append((current, n))
+                        if n not in seen:
+                            stack.append((n, current))
+        else:  # BFS
+            from collections import deque
+            queue = deque([(node, None)])
+            # Don't add to seen here - we'll do it when we process
+            local_seen = set([node])
+
+            while queue:
+                current, from_node = queue.popleft()
+                if current not in seen:  # Check global seen set
+                    visited.append(current)
+                    seen.add(current)
+                    if from_node is not None:
+                        used_edges.append((from_node, current))
+
+                    neighbors = graph[current]
+                    for neighbor in neighbors:
+                        n = neighbor[0] if isinstance(neighbor, tuple) else neighbor
+                        checked_edges.append((current, n))
+                        if n not in local_seen:
+                            local_seen.add(n)
+                            queue.append((n, current))
+
+    # Start traversal from the start node
+    traverse_from_node(start)
+
+    # For undirected graphs, ensure all connected components are traversed
+    if not is_directed:
+        # Try to start traversal from each unvisited node to handle disconnected components
+        for node in graph:
             if node not in seen:
-                visited.append(node)
-                if from_node is not None:
-                    used_edges.append((from_node, node))
-                seen.add(node)
-                neighbors = graph[node]
-                for neighbor in reversed(neighbors):
-                    n = neighbor[0] if isinstance(neighbor, tuple) else neighbor
-                    checked_edges.append((node, n))
-                    if n not in seen:
-                        stack.append((n, node))
-    else:  # BFS
-        from collections import deque
-        queue = deque([(start, None)])
-        seen = set([start])
-        while queue:
-            node, from_node = queue.popleft()
-            visited.append(node)
-            if from_node is not None:
-                used_edges.append((from_node, node))
-            neighbors = graph[node]
-            for neighbor in neighbors:
-                n = neighbor[0] if isinstance(neighbor, tuple) else neighbor
-                checked_edges.append((node, n))
-                if n not in seen:
-                    seen.add(n)
-                    queue.append((n, node))
+                traverse_from_node(node)
+
     return visited, used_edges, checked_edges
 
 
 @app.route("/")
 def index():
     return render_template("index.html")
+
 
 @app.route("/api/generate", methods=["POST"])
 def api_generate():
@@ -158,7 +186,7 @@ def api_generate():
     size = int(data.get("size", 10))
 
     graph = generate_graph(graph_type, size)
-    traversal, used_edges, checked_edges = traverse(graph, 0, algorithm)
+    traversal, used_edges, checked_edges = traverse(graph, 0, algorithm, graph_type)
     return jsonify({
         "graph": graph,
         "traversal": traversal,
@@ -166,22 +194,25 @@ def api_generate():
         "checked": checked_edges
     })
 
+
 @app.route("/api/traverse", methods=["POST"])
 def api_traverse():
     data = request.json
     graph = data["graph"]
     algorithm = data.get("algorithm", "DFS")
+    graph_type = data.get("graphType", "finite")
 
     # convert keys to int, and tuples to lists (for safety)
     graph = {int(k): [tuple(n) if isinstance(n, list) and len(n) == 2 else n for n in v] for k, v in graph.items()}
 
-    traversal, used_edges, checked_edges = traverse(graph, 0, algorithm)
+    traversal, used_edges, checked_edges = traverse(graph, 0, algorithm, graph_type)
 
     return jsonify({
         "traversal": traversal,
         "edges": used_edges,
         "checked": checked_edges
     })
+
 
 if __name__ == "__main__":
     app.run(debug=True)

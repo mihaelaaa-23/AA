@@ -36,7 +36,11 @@ async function runTraversal(algo) {
   const response = await fetch("/api/traverse", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ graph: originalGraphData, algorithm: algo })
+    body: JSON.stringify({
+      graph: originalGraphData,
+      algorithm: algo,
+      graphType: lastGraphType
+    })
   });
 
   if (!response.ok) {
@@ -66,94 +70,70 @@ function drawGraph(graph, traversal, edges = [], checked = []) {
   const confirmedEdges = new Set();
   const confirmedNodes = new Set();
 
+  // Determine if this is a directed graph based on graph type
+  const isDirected = lastGraphType === "directed" || lastGraphType === "acyclic";
+
+  // Define arrow markers for directed graphs
+  if (isDirected) {
+    // Add arrow marker definition
+    svg.append("defs").append("marker")
+      .attr("id", "arrowhead")
+      .attr("viewBox", "0 -5 10 10")
+      .attr("refX", 25) // Position the arrowhead away from the end of the line
+      .attr("refY", 0)
+      .attr("orient", "auto")
+      .attr("markerWidth", 6)
+      .attr("markerHeight", 6)
+      .attr("xoverflow", "visible")
+      .append("path")
+      .attr("d", "M 0,-5 L 10,0 L 0,5")
+      .attr("fill", "#999")
+      .attr("stroke", "none");
+  }
 
   const nodes = Object.keys(graph).map(d => ({ id: +d }));
   const links = [];
 
-  checked.forEach(([from, to], i) => {
-    const selector = d =>
-      (d.source.id === from && d.target.id === to) ||
-      (d.source.id === to && d.target.id === from);
-
-    const delay = i * 600;
-
-    // 🟠 Colorează portocaliu (doar dacă NU e deja verde)
-    setTimeout(() => {
-      if (
-        confirmedEdges.has(`${from}-${to}`) ||
-        confirmedEdges.has(`${to}-${from}`)
-      ) return;
-
-      link.filter(selector)
-        .filter(function () {
-          return d3.select(this).attr("data-status") !== "confirmed";
-        })
-        .attr("stroke", "#ffaa00")
-        .attr("stroke-width", 2)
-        .attr("data-status", "checked");
-    }, delay);
-  });
-
-  edges.forEach(([from, to], i) => {
-    const selector = d =>
-      (d.source.id === from && d.target.id === to) ||
-      (d.source.id === to && d.target.id === from);
-
-    const delay = i * 600 + 300;
-
-    setTimeout(() => {
-      // ✅ Colorează muchia, doar dacă nu a fost confirmată
-
-      link.filter(selector)
-        .attr("stroke", "#00cc66")
-        .attr("stroke-width", 4)
-        .attr("data-status", "confirmed");
-
-      // ⏳ Apoi colorezi nodul
-      setTimeout(() => {
-        node.filter(d => d.id === to)
-          .filter(function () {
-            return d3.select(this).attr("data-status") !== "confirmed";
-          })
-          .attr("fill", "#00cc66")
-          .attr("data-status", "confirmed");
-      }, 200);
-    }, delay);
-  });
-
-
+  // Create links based on the graph data
   for (const [src, targets] of Object.entries(graph)) {
-  for (const tgt of targets) {
-    if (Array.isArray(tgt)) {
-      const [target, weight] = tgt;
-      if (+src < +target) links.push({ source: +src, target: +target, weight });
-    } else {
-      if (+src < +tgt) links.push({ source: +src, target: +tgt });
+    for (const tgt of targets) {
+      if (Array.isArray(tgt)) {
+        const [target, weight] = tgt;
+        // For directed graphs, don't filter by source < target
+        if (isDirected || +src < +target) {
+          links.push({ source: +src, target: +target, weight });
+        }
+      } else {
+        // For directed graphs, don't filter by source < target
+        if (isDirected || +src < +tgt) {
+          links.push({ source: +src, target: +tgt });
+        }
+      }
     }
   }
-}
 
   const simulation = d3.forceSimulation(nodes)
-  .force("link", d3.forceLink(links).distance(100).id(d => d.id))
-  .force("charge", d3.forceManyBody().strength(-300))
-  .force("center", d3.forceCenter(width / 2, height / 2));
+    .force("link", d3.forceLink(links).distance(100).id(d => d.id))
+    .force("charge", d3.forceManyBody().strength(-300))
+    .force("center", d3.forceCenter(width / 2, height / 2));
 
+  // Create links with arrows if directed
   const link = svg.append("g")
     .attr("stroke", "#999")
     .attr("stroke-opacity", 0.6)
     .selectAll("line")
     .data(links)
     .join("line")
-    .attr("stroke-width", 2);
+    .attr("stroke-width", 2)
+    .attr("marker-end", isDirected ? "url(#arrowhead)" : ""); // Add arrowhead marker for directed graphs
 
   const linkLabels = svg.append("g")
-  .selectAll("text")
-  .data(links.filter(d => d.weight))
-  .join("text")
-  .attr("font-size", 12)
-  .attr("fill", "black")
-  .text(d => d.weight);
-
+    .selectAll("text")
+    .data(links.filter(d => d.weight))
+    .join("text")
+    .attr("font-size", 12)
+    .attr("fill", "black")
+    .text(d => d.weight);
 
   const node = svg.append("g")
     .attr("stroke", "#fff")
@@ -174,12 +154,106 @@ function drawGraph(graph, traversal, edges = [], checked = []) {
     .attr("dy", 4)
     .attr("text-anchor", "middle");
 
+  checked.forEach(([from, to], i) => {
+    const selector = d =>
+      (d.source.id === from && d.target.id === to) ||
+      (!isDirected && d.source.id === to && d.target.id === from);
+
+    const delay = i * 600;
+
+    // 🟠 Colorează portocaliu (doar dacă NU e deja verde)
+    setTimeout(() => {
+      if (
+        confirmedEdges.has(`${from}-${to}`) ||
+        (!isDirected && confirmedEdges.has(`${to}-${from}`))
+      ) return;
+
+      link.filter(selector)
+        .filter(function () {
+          return d3.select(this).attr("data-status") !== "confirmed";
+        })
+        .attr("stroke", "#ffaa00")
+        .attr("stroke-width", 2)
+        .attr("data-status", "checked");
+    }, delay);
+  });
+
+  edges.forEach(([from, to], i) => {
+    const selector = d =>
+      (d.source.id === from && d.target.id === to) ||
+      (!isDirected && d.source.id === to && d.target.id === from);
+
+    const delay = i * 600 + 300;
+
+    setTimeout(() => {
+      // ✅ Colorează muchia, doar dacă nu a fost confirmată
+      link.filter(selector)
+        .attr("stroke", "#00cc66")
+        .attr("stroke-width", 4)
+        .attr("data-status", "confirmed");
+
+      // If it's a directed graph, also update the arrowhead color
+      if (isDirected) {
+        // Update arrow marker for the confirmed path
+        svg.select("defs").append("marker")
+          .attr("id", "arrowhead-confirmed")
+          .attr("viewBox", "0 -5 10 10")
+          .attr("refX", 25)
+          .attr("refY", 0)
+          .attr("orient", "auto")
+          .attr("markerWidth", 6)
+          .attr("markerHeight", 6)
+          .attr("xoverflow", "visible")
+          .append("path")
+          .attr("d", "M 0,-5 L 10,0 L 0,5")
+          .attr("fill", "#00cc66")
+          .attr("stroke", "none");
+
+        link.filter(selector)
+          .attr("marker-end", "url(#arrowhead-confirmed)");
+      }
+
+      // ⏳ Apoi colorezi nodul
+      setTimeout(() => {
+        node.filter(d => d.id === to)
+          .filter(function () {
+            return d3.select(this).attr("data-status") !== "confirmed";
+          })
+          .attr("fill", "#00cc66")
+          .attr("data-status", "confirmed");
+      }, 200);
+    }, delay);
+  });
+
   simulation.on("tick", () => {
-    link
-      .attr("x1", d => d.source.x)
-      .attr("y1", d => d.source.y)
-      .attr("x2", d => d.target.x)
-      .attr("y2", d => d.target.y);
+    // For directed graphs, adjust the line endpoints to not overlap with the arrowhead
+    if (isDirected) {
+      link
+        .attr("x1", d => d.source.x)
+        .attr("y1", d => d.source.y)
+        .attr("x2", function(d) {
+          // Calculate the angle
+          const dx = d.target.x - d.source.x;
+          const dy = d.target.y - d.source.y;
+          const angle = Math.atan2(dy, dx);
+          // Move the endpoint back by the radius of the node
+          const radius = 15;
+          return d.target.x - (Math.cos(angle) * radius);
+        })
+        .attr("y2", function(d) {
+          const dx = d.target.x - d.source.x;
+          const dy = d.target.y - d.source.y;
+          const angle = Math.atan2(dy, dx);
+          const radius = 15;
+          return d.target.y - (Math.sin(angle) * radius);
+        });
+    } else {
+      link
+        .attr("x1", d => d.source.x)
+        .attr("y1", d => d.source.y)
+        .attr("x2", d => d.target.x)
+        .attr("y2", d => d.target.y);
+    }
 
     node
       .attr("cx", d => d.x)
@@ -193,7 +267,6 @@ function drawGraph(graph, traversal, edges = [], checked = []) {
       ?.attr("x", d => (d.source.x + d.target.x) / 2)
       ?.attr("y", d => (d.source.y + d.target.y) / 2);
   });
-
 
   simulation.on("end", () => {
     const minX = Math.min(...nodes.map(d => d.x));
@@ -211,10 +284,30 @@ function drawGraph(graph, traversal, edges = [], checked = []) {
     label.attr("x", d => d.x + offsetX)
          .attr("y", d => d.y + offsetY);
 
-    link.attr("x1", d => d.source.x + offsetX)
-        .attr("y1", d => d.source.y + offsetY)
-        .attr("x2", d => d.target.x + offsetX)
-        .attr("y2", d => d.target.y + offsetY);
+    // Adjust the arrow position based on directed graph
+    if (isDirected) {
+      link.attr("x1", d => d.source.x + offsetX)
+          .attr("y1", d => d.source.y + offsetY)
+          .attr("x2", function(d) {
+            const dx = d.target.x - d.source.x;
+            const dy = d.target.y - d.source.y;
+            const angle = Math.atan2(dy, dx);
+            const radius = 15;
+            return (d.target.x - (Math.cos(angle) * radius)) + offsetX;
+          })
+          .attr("y2", function(d) {
+            const dx = d.target.x - d.source.x;
+            const dy = d.target.y - d.source.y;
+            const angle = Math.atan2(dy, dx);
+            const radius = 15;
+            return (d.target.y - (Math.sin(angle) * radius)) + offsetY;
+          });
+    } else {
+      link.attr("x1", d => d.source.x + offsetX)
+          .attr("y1", d => d.source.y + offsetY)
+          .attr("x2", d => d.target.x + offsetX)
+          .attr("y2", d => d.target.y + offsetY);
+    }
 
     linkLabels?.attr("x", d => (d.source.x + d.target.x) / 2 + offsetX)
                ?.attr("y", d => (d.source.y + d.target.y) / 2 + offsetY);
