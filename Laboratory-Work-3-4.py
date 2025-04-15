@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 from collections import deque
 from typing import List, Dict, Tuple, Union
 from prettytable import PrettyTable
+import heapq
+import pandas as pd
 
 
 class GraphAnalyzer:
@@ -279,6 +281,130 @@ class GraphAnalyzer:
         plt.tight_layout()
         plt.show()
 
+    def dijkstra(self, adj: List[Dict[int, int]], start: int) -> Tuple[Dict[int, int], float]:
+        dist = {i: float('inf') for i in range(len(adj))}
+        dist[start] = 0
+        visited = set()
+        heap = [(0, start)]
+
+        start_time = time.time()
+
+        while heap:
+            d, u = heapq.heappop(heap)
+            if u in visited:
+                continue
+            visited.add(u)
+
+            for v in adj[u]:
+                if dist[u] + adj[u][v] < dist[v]:
+                    dist[v] = dist[u] + adj[u][v]
+                    heapq.heappush(heap, (dist[v], v))
+
+        return dist, time.time() - start_time
+
+    def floyd_warshall(self, adj: List[Dict[int, int]]) -> Tuple[List[List[float]], float]:
+        size = len(adj)
+        dist = [[float('inf')] * size for _ in range(size)]
+        for i in range(size):
+            dist[i][i] = 0
+            for j in adj[i]:
+                dist[i][j] = adj[i][j]
+
+        start_time = time.time()
+
+        for k in range(size):
+            for i in range(size):
+                for j in range(size):
+                    if dist[i][k] + dist[k][j] < dist[i][j]:
+                        dist[i][j] = dist[i][k] + dist[k][j]
+
+        return dist, time.time() - start_time
+
+    def generate_weighted_graph(self, size: int, graph_type: str) -> List[Dict[int, int]]:
+        adj = [{} for _ in range(size)]
+
+        if graph_type == "sparse":
+            for i in range(size):
+                connections = random.sample(range(size), min(2, size - 1))
+                for j in connections:
+                    if j != i and j not in adj[i]:
+                        weight = random.randint(1, 10)
+                        adj[i][j] = weight
+                        adj[j][i] = weight
+
+        elif graph_type == "dense":
+            for i in range(size):
+                for j in range(size):
+                    if i != j and random.random() < 0.7:
+                        weight = random.randint(1, 10)
+                        adj[i][j] = weight
+
+        return adj
+
+    def analyze_shortest_path_algorithms(self, graph_sizes: List[int]) -> Dict[str, List]:
+        results = {"size": [], "floyd_sparse": [], "dijkstra_sparse": [], "floyd_dense": [], "dijkstra_dense": []}
+
+        for gtype in ["sparse", "dense"]:
+            for size in graph_sizes:
+                adj = self.generate_weighted_graph(size, gtype)
+                _, fw_time = self.floyd_warshall(adj)
+                _, dj_time = self.dijkstra(adj, 0)
+
+                if gtype == "sparse":
+                    results["floyd_sparse"].append(fw_time)
+                    results["dijkstra_sparse"].append(dj_time)
+                else:
+                    results["floyd_dense"].append(fw_time)
+                    results["dijkstra_dense"].append(dj_time)
+
+                if size not in results["size"]:
+                    results["size"].append(size)
+
+        return results
+
+    def display_results(self, results: Dict[str, List]):
+        # Creăm tabelul
+        table = PrettyTable()
+        table.title = "Execution Time Analysis"
+        table.field_names = [
+            "Graph Size",
+            "Dijkstra (Sparse)", "Floyd-Warshall (Sparse)",
+            "Dijkstra (Dense)", "Floyd-Warshall (Dense)"
+        ]
+
+        for i in range(len(results["size"])):
+            table.add_row([
+                results["size"][i],
+                f"{results['dijkstra_sparse'][i]:.6f}",
+                f"{results['floyd_sparse'][i]:.6f}",
+                f"{results['dijkstra_dense'][i]:.6f}",
+                f"{results['floyd_dense'][i]:.6f}"
+            ])
+
+        print(table)
+
+        # Afișăm graficele
+        plt.style.use('ggplot')
+        fig, ax = plt.subplots(1, 2, figsize=(14, 6))
+
+        ax[0].plot(results["size"], results["dijkstra_sparse"], marker='o', label="Dijkstra")
+        ax[0].plot(results["size"], results["floyd_sparse"], marker='s', label="Floyd–Warshall")
+        ax[0].set_title("Sparse Graphs")
+        ax[0].set_xlabel("Graph Size")
+        ax[0].set_ylabel("Execution Time (s)")
+        ax[0].legend()
+        ax[0].grid(True)
+
+        ax[1].plot(results["size"], results["dijkstra_dense"], marker='o', label="Dijkstra")
+        ax[1].plot(results["size"], results["floyd_dense"], marker='s', label="Floyd–Warshall")
+        ax[1].set_title("Dense Graphs")
+        ax[1].set_xlabel("Graph Size")
+        ax[1].set_ylabel("Execution Time (s)")
+        ax[1].legend()
+        ax[1].grid(True)
+
+        plt.tight_layout()
+        plt.show()
 
 if __name__ == "__main__":
     analyzer = GraphAnalyzer()
@@ -293,3 +419,7 @@ if __name__ == "__main__":
     for gtype in graph_types:
         print(f"\nAnalyzing {gtype} graph...")
         analyzer.analyze_algorithms(graph_sizes, gtype)
+
+    # graph_sizes = [10, 50, 100, 200]
+    results = analyzer.analyze_shortest_path_algorithms(graph_sizes)
+    analyzer.display_results(results)
