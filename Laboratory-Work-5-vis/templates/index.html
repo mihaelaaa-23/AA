@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Graph Visualizer — Prim & Kruskal MST Algorithms</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body { margin: 0; font-family: sans-serif; }
+    #controls { padding: 10px; background: #f4f4f4; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    #graph { width: 100%; height: calc(100vh - 60px); display: block; }
+    button, select, input { padding: 5px 10px; }
+    h2 { margin: 10px 0; }
+    .legend { padding: 10px; background: rgba(255, 255, 255, 0.8); border-radius: 5px; position: absolute; top: 20px; left: 20px; }
+    .legend-item { display: flex; align-items: center; margin-bottom: 5px; }
+    .legend-color { width: 15px; height: 15px; margin-right: 8px; border-radius: 50%; }
+  </style>
+</head>
+<body>
+  <h2 style="text-align:center;">Graph Visualizer — Minimum Spanning Tree Algorithms</h2>
+  <div id="controls">
+    <label>Graph Type:
+      <select id="graphType">
+        <option value="sparse">Sparse</option>
+        <option value="dense">Dense</option>
+        <option value="directed-sparse">Directed Sparse</option>
+        <option value="directed-dense">Directed Dense</option>
+      </select>
+    </label>
+
+    <label>Number of Nodes:
+      <select id="nodeCount">
+        <option value="5" selected>5</option>
+        <option value="10">10</option>
+        <option value="15">15</option>
+        <option value="20">20</option>
+        <option value="30">30</option>
+      </select>
+    </label>
+
+    <button onclick="generateGraph()">Generate</button>
+    <button onclick="runTraversal('prim')">Run Prim's</button>
+    <button onclick="runTraversal('kruskal')">Run Kruskal's</button>
+    <button onclick="resetGraph()">Reset</button>
+  </div>
+  <svg id="graph" width="1000" height="600"></svg>
+
+  <div class="legend" id="algorithm-legend" style="display: none;">
+    <h3 id="algo-title">Algorithm Legend</h3>
+    <div class="legend-item">
+      <div class="legend-color" style="background: #ffcc00;"></div>
+      <span>Start Node</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-color" style="background: #00cc66;"></div>
+      <span>MST Nodes</span>
+    </div>
+    <div class="legend-item">
+      <div style="height: 2px; width: 15px; background: #ffaa00; margin-right: 8px;"></div>
+      <span>Checked Edges</span>
+    </div>
+    <div class="legend-item">
+      <div style="height: 3px; width: 15px; background: #00cc66; margin-right: 8px;"></div>
+      <span>MST Edges</span>
+    </div>
+    <div id="mst-weight" style="margin-top: 10px; font-weight: bold;"></div>
+  </div>
+
+  <!-- Make sure the script path is correct -->
+  <script src="static/js/graph.js"></script>
+</body>
+</html>
