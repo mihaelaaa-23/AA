@@ -5,7 +5,7 @@ from collections import deque
 from typing import List, Dict, Tuple, Union
 from prettytable import PrettyTable
 import heapq
-import pandas as pd
+import sys
 
 
 class GraphAnalyzer:
@@ -97,7 +97,7 @@ class GraphAnalyzer:
 
         elif graph_type == "sparse":
             for i in range(size):
-                for _ in range(2):  # doar 2 muchii per nod = sparse
+                for _ in range(2):  # doar 2 edges per nod = sparse
                     j = random.randint(0, size - 1)
                     if j != i and j not in adj[i]:
                         adj[i].append(j)
@@ -339,7 +339,7 @@ class GraphAnalyzer:
                         weight = random.randint(1, 10)
                         adj[i][j] = weight
 
-        return adj
+        return adj, graph_type.capitalize() + " Graph"
 
     def analyze_shortest_path_algorithms(self, graph_sizes: List[int]) -> Dict[str, List]:
         results = {"size": [], "floyd_sparse": [], "dijkstra_sparse": [], "floyd_dense": [], "dijkstra_dense": []}
@@ -363,7 +363,6 @@ class GraphAnalyzer:
         return results
 
     def display_results(self, results: Dict[str, List]):
-        # Creăm tabelul
         table = PrettyTable()
         table.title = "Execution Time Analysis"
         table.field_names = [
@@ -383,7 +382,6 @@ class GraphAnalyzer:
 
         print(table)
 
-        # Afișăm graficele
         plt.style.use('ggplot')
         fig, ax = plt.subplots(1, 2, figsize=(14, 6))
 
@@ -406,6 +404,159 @@ class GraphAnalyzer:
         plt.tight_layout()
         plt.show()
 
+    def prim(self, adj: List[Dict[int, int]], start: int) -> Tuple[List[Tuple[int, int]], float, int]:
+        mst = []
+        total_weight = 0
+        visited = [False] * len(adj)
+        min_heap = [(0, start)]
+        start_time = time.time()
+
+        while min_heap:
+            weight, u = heapq.heappop(min_heap)
+            if visited[u]:
+                continue
+
+            visited[u] = True
+            total_weight += weight
+
+            if weight > 0:
+                mst.append((u, weight))
+
+            for v, edge_weight in adj[u].items():
+                if not visited[v]:
+                    heapq.heappush(min_heap, (edge_weight, v))
+
+        end_time = time.time()
+        memory_used = sys.getsizeof(mst) + sys.getsizeof(visited) + sys.getsizeof(min_heap)
+        return mst, end_time - start_time, memory_used
+
+    def kruskal(self, adj: List[Dict[int, int]]) -> Tuple[List[Tuple[int, int]], float, int]:
+        edges = []
+        for u in range(len(adj)):
+            for v, weight in adj[u].items():
+                if u < v:
+                    edges.append((weight, u, v))
+
+        edges.sort()
+
+        parent = list(range(len(adj)))
+        rank = [0] * len(adj)
+
+        def find(u):
+            if parent[u] != u:
+                parent[u] = find(parent[u])
+            return parent[u]
+
+        def union(u, v):
+            root_u = find(u)
+            root_v = find(v)
+            if root_u != root_v:
+                if rank[root_u] > rank[root_v]:
+                    parent[root_v] = root_u
+                elif rank[root_u] < rank[root_v]:
+                    parent[root_u] = root_v
+                else:
+                    parent[root_v] = root_u
+                    rank[root_u] += 1
+
+        mst = []
+        total_weight = 0
+        start_time = time.time()
+
+        for weight, u, v in edges:
+            if find(u) != find(v):
+                union(u, v)
+                mst.append((u, v, weight))
+                total_weight += weight
+
+        end_time = time.time()
+        memory_used = sys.getsizeof(mst) + sys.getsizeof(parent) + sys.getsizeof(rank) + sys.getsizeof(edges)
+        return mst, end_time - start_time, memory_used
+
+    def print_results_table(self, graph_sizes, prim_times, kruskal_times, prim_memory, kruskal_memory, graph_name):
+        table = PrettyTable()
+        table.title = f"Performance Comparison: {graph_name}"
+        table.field_names = [
+            "Graph Size", "Prim’s Time (s)", "Kruskal’s Time (s)", "Prim’s Memory", "Kruskal’s Memory", "Time Ratio",
+            "Memory Ratio"
+        ]
+
+        for i in range(len(graph_sizes)):
+            prim_time = prim_times[i]
+            kruskal_time = kruskal_times[i]
+            prim_mem = prim_memory[i]
+            kruskal_mem = kruskal_memory[i]
+
+            # Calculate the time and memory ratios
+            time_ratio = kruskal_time / prim_time if prim_time != 0 else float('inf')
+            mem_ratio = kruskal_mem / prim_mem if prim_mem != 0 else float('inf')
+
+            table.add_row([
+                graph_sizes[i], f"{prim_time:.6f}", f"{kruskal_time:.6f}", prim_mem, kruskal_mem, f"{time_ratio:.2f}",
+                f"{mem_ratio:.2f}"
+            ])
+
+        print(table)
+
+    def plot_comparison(self, graph_sizes, prim_times, kruskal_times, prim_memory, kruskal_memory, graph_name):
+        # Plot execution time comparison
+        plt.figure(figsize=(12, 6))
+
+        plt.subplot(1, 2, 1)
+        plt.plot(graph_sizes, prim_times, label="Prim’s Algorithm", marker='o')
+        plt.plot(graph_sizes, kruskal_times, label="Kruskal’s Algorithm", marker='s')
+        plt.xlabel("Graph Size")
+        plt.ylabel("Execution Time (s)")
+        # plt.yscale("log")  # Log scale for the Y-axis
+        # plt.xscale("log")  # Log scale for the X-axis (optional)
+        plt.title(f"Execution Time Comparison ({graph_name})")
+        plt.legend()
+        plt.grid(True)
+
+        # Plot memory usage comparison
+        plt.subplot(1, 2, 2)
+        plt.plot(graph_sizes, prim_memory, label="Prim’s Algorithm Memory", marker='o')
+        plt.plot(graph_sizes, kruskal_memory, label="Kruskal’s Algorithm Memory", marker='s')
+        plt.xlabel("Graph Size")
+        plt.ylabel("Memory Usage (bytes)")
+        # plt.yscale("log")  # Log scale for memory usage
+        # plt.xscale("log")  # Log scale for graph size
+        plt.title(f"Memory Usage Comparison ({graph_name})")
+        plt.legend()
+        plt.grid(True)
+
+        plt.tight_layout()
+        plt.show()
+
+    def analyze_greedy_algorithms(self, graph_sizes: List[int], graph_type: str, trials: int = 5):
+        prim_times, kruskal_times = [], []
+        prim_memory, kruskal_memory = [], []
+
+        for size in graph_sizes:
+            adj, graph_name = self.generate_weighted_graph(size, graph_type)
+
+            prim_time_avg = 0
+            kruskal_time_avg = 0
+            prim_mem_avg = 0
+            kruskal_mem_avg = 0
+            for _ in range(trials):
+                start_node = 0
+                _, prim_time, prim_mem = self.prim(adj, start_node)
+                prim_time_avg += prim_time
+                prim_mem_avg += prim_mem
+
+                _, kruskal_time, kruskal_mem = self.kruskal(adj)
+                kruskal_time_avg += kruskal_time
+                kruskal_mem_avg += kruskal_mem
+
+            prim_times.append(prim_time_avg / trials)
+            kruskal_times.append(kruskal_time_avg / trials)
+            prim_memory.append(prim_mem_avg / trials)
+            kruskal_memory.append(kruskal_mem_avg / trials)
+
+        self.print_results_table(graph_sizes, prim_times, kruskal_times, prim_memory, kruskal_memory, graph_name)
+        self.plot_comparison(graph_sizes, prim_times, kruskal_times, prim_memory, kruskal_memory, graph_name)
+
 if __name__ == "__main__":
     analyzer = GraphAnalyzer()
 
@@ -416,10 +567,17 @@ if __name__ == "__main__":
 
     graph_sizes = [10, 50, 100, 200, 500, 800]
 
+    # lab 3
     for gtype in graph_types:
         print(f"\nAnalyzing {gtype} graph...")
         analyzer.analyze_algorithms(graph_sizes, gtype)
 
+    # lab 4
     # graph_sizes = [10, 50, 100, 200]
     results = analyzer.analyze_shortest_path_algorithms(graph_sizes)
     analyzer.display_results(results)
+
+    # lab 5
+    for gtype in ["sparse", "dense"]:
+        print(f"\nAnalyzing {gtype} graph...")
+        analyzer.analyze_greedy_algorithms(graph_sizes, gtype)
