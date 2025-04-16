@@ -281,7 +281,7 @@ class GraphAnalyzer:
         plt.tight_layout()
         plt.show()
 
-    def dijkstra(self, adj: List[Dict[int, int]], start: int) -> Tuple[Dict[int, int], float]:
+    def dijkstra(self, adj: List[Dict[int, int]], start: int) -> Tuple[Dict[int, int], float, int]:
         dist = {i: float('inf') for i in range(len(adj))}
         dist[start] = 0
         visited = set()
@@ -300,9 +300,17 @@ class GraphAnalyzer:
                     dist[v] = dist[u] + adj[u][v]
                     heapq.heappush(heap, (dist[v], v))
 
-        return dist, time.time() - start_time
+        exec_time = time.time() - start_time
 
-    def floyd_warshall(self, adj: List[Dict[int, int]]) -> Tuple[List[List[float]], float]:
+        memory_used = (
+                sys.getsizeof(dist) +
+                sys.getsizeof(visited) +
+                sys.getsizeof(heap)
+        )
+
+        return dist, exec_time, memory_used
+
+    def floyd_warshall(self, adj: List[Dict[int, int]]) -> Tuple[List[List[float]], float, int]:
         size = len(adj)
         dist = [[float('inf')] * size for _ in range(size)]
         for i in range(size):
@@ -318,8 +326,10 @@ class GraphAnalyzer:
                     if dist[i][k] + dist[k][j] < dist[i][j]:
                         dist[i][j] = dist[i][k] + dist[k][j]
 
-        return dist, time.time() - start_time
+        exec_time = time.time() - start_time
+        memory_used = sys.getsizeof(dist) + sum(sys.getsizeof(row) for row in dist)
 
+        return dist, exec_time, memory_used
     def generate_weighted_graph(self, size: int, graph_type: str) -> List[Dict[int, int]]:
         adj = [{} for _ in range(size)]
 
@@ -339,70 +349,162 @@ class GraphAnalyzer:
                         weight = random.randint(1, 10)
                         adj[i][j] = weight
 
-        return adj, graph_type.capitalize() + " Graph"
+        return adj
 
-    def analyze_shortest_path_algorithms(self, graph_sizes: List[int]) -> Dict[str, List]:
-        results = {"size": [], "floyd_sparse": [], "dijkstra_sparse": [], "floyd_dense": [], "dijkstra_dense": []}
+    def analyze_shortest_path(self, graph_sizes: List[int], trials: int = 5) -> Dict[str, List]:
+        results = {
+            "size": [],
+            "floyd_sparse": [], "floyd_sparse_mem": [],
+            "floyd_dense": [], "floyd_dense_mem": [],
+            "dijkstra_sparse": [], "dijkstra_sparse_mem": [],
+            "dijkstra_dense": [], "dijkstra_dense_mem": []
+        }
 
         for gtype in ["sparse", "dense"]:
             for size in graph_sizes:
-                adj = self.generate_weighted_graph(size, gtype)
-                _, fw_time = self.floyd_warshall(adj)
-                _, dj_time = self.dijkstra(adj, 0)
+                fw_times = []
+                fw_mems = []
+                dj_times = []
+                dj_mems = []
+
+                for _ in range(trials):
+                    adj, _ = self.generate_weighted_graph_4(size, gtype)
+
+                    if not fw_times:
+                        _, fw_time, fw_mem = self.floyd_warshall(adj)
+                        fw_times.append(fw_time)
+                        fw_mems.append(fw_mem)
+
+                    _, dj_time, dj_mem = self.dijkstra(adj, 0)
+                    dj_times.append(dj_time)
+                    dj_mems.append(dj_mem)
+
+                avg_fw = sum(fw_times) / len(fw_times)
+                avg_fw_mem = sum(fw_mems) // len(fw_mems)
+                avg_dj = sum(dj_times) / trials
+                avg_dj_mem = sum(dj_mems) // trials
 
                 if gtype == "sparse":
-                    results["floyd_sparse"].append(fw_time)
-                    results["dijkstra_sparse"].append(dj_time)
+                    results["floyd_sparse"].append(avg_fw)
+                    results["floyd_sparse_mem"].append(avg_fw_mem)
+                    results["dijkstra_sparse"].append(avg_dj)
+                    results["dijkstra_sparse_mem"].append(avg_dj_mem)
                 else:
-                    results["floyd_dense"].append(fw_time)
-                    results["dijkstra_dense"].append(dj_time)
+                    results["floyd_dense"].append(avg_fw)
+                    results["floyd_dense_mem"].append(avg_fw_mem)
+                    results["dijkstra_dense"].append(avg_dj)
+                    results["dijkstra_dense_mem"].append(avg_dj_mem)
 
                 if size not in results["size"]:
                     results["size"].append(size)
 
         return results
 
-    def display_results(self, results: Dict[str, List]):
-        table = PrettyTable()
-        table.title = "Execution Time Analysis"
-        table.field_names = [
+    def display_shortest_path_results(self, results: Dict[str, List]):
+        # --- Sparse Graphs ---
+        table_sparse = PrettyTable()
+        table_sparse.title = "Empirical Performance on Sparse Graphs"
+        table_sparse.field_names = [
             "Graph Size",
-            "Dijkstra (Sparse)", "Floyd-Warshall (Sparse)",
-            "Dijkstra (Dense)", "Floyd-Warshall (Dense)"
+            "Dijkstra Time (s)", "Floyd–W. Time (s)",
+            "Dijkstra Mem (B)", "Floyd Mem (B)"
         ]
 
         for i in range(len(results["size"])):
-            table.add_row([
+            table_sparse.add_row([
                 results["size"][i],
                 f"{results['dijkstra_sparse'][i]:.6f}",
                 f"{results['floyd_sparse'][i]:.6f}",
-                f"{results['dijkstra_dense'][i]:.6f}",
-                f"{results['floyd_dense'][i]:.6f}"
+                results["dijkstra_sparse_mem"][i],
+                results["floyd_sparse_mem"][i]
             ])
 
-        print(table)
+        print(table_sparse)
 
-        plt.style.use('ggplot')
+        # --- Dense Graphs ---
+        table_dense = PrettyTable()
+        table_dense.title = "Empirical Performance on Dense Graphs"
+        table_dense.field_names = [
+            "Graph Size",
+            "Dijkstra Time (s)", "Floyd–W. Time (s)",
+            "Dijkstra Mem (B)", "Floyd Mem (B)"
+        ]
+
+        for i in range(len(results["size"])):
+            table_dense.add_row([
+                results["size"][i],
+                f"{results['dijkstra_dense'][i]:.6f}",
+                f"{results['floyd_dense'][i]:.6f}",
+                results["dijkstra_dense_mem"][i],
+                results["floyd_dense_mem"][i]
+            ])
+
+        print(table_dense)
+
+        # --- Execution Time Plot ---
         fig, ax = plt.subplots(1, 2, figsize=(14, 6))
 
         ax[0].plot(results["size"], results["dijkstra_sparse"], marker='o', label="Dijkstra")
         ax[0].plot(results["size"], results["floyd_sparse"], marker='s', label="Floyd–Warshall")
-        ax[0].set_title("Sparse Graphs")
+        ax[0].set_title("Sparse Graphs - Execution Time")
         ax[0].set_xlabel("Graph Size")
-        ax[0].set_ylabel("Execution Time (s)")
+        ax[0].set_ylabel("Time (s)")
         ax[0].legend()
         ax[0].grid(True)
 
         ax[1].plot(results["size"], results["dijkstra_dense"], marker='o', label="Dijkstra")
         ax[1].plot(results["size"], results["floyd_dense"], marker='s', label="Floyd–Warshall")
-        ax[1].set_title("Dense Graphs")
+        ax[1].set_title("Dense Graphs - Execution Time")
         ax[1].set_xlabel("Graph Size")
-        ax[1].set_ylabel("Execution Time (s)")
+        ax[1].set_ylabel("Time (s)")
         ax[1].legend()
         ax[1].grid(True)
 
         plt.tight_layout()
         plt.show()
+
+        # --- Memory Usage Plot ---
+        fig, ax = plt.subplots(1, 2, figsize=(14, 6))
+
+        ax[0].plot(results["size"], results["dijkstra_sparse_mem"], marker='o', label="Dijkstra Mem")
+        ax[0].plot(results["size"], results["floyd_sparse_mem"], marker='s', label="Floyd Mem")
+        ax[0].set_title("Sparse Graphs - Memory Usage")
+        ax[0].set_xlabel("Graph Size")
+        ax[0].set_ylabel("Memory (bytes)")
+        ax[0].legend()
+        ax[0].grid(True)
+
+        ax[1].plot(results["size"], results["dijkstra_dense_mem"], marker='o', label="Dijkstra Mem")
+        ax[1].plot(results["size"], results["floyd_dense_mem"], marker='s', label="Floyd Mem")
+        ax[1].set_title("Dense Graphs - Memory Usage")
+        ax[1].set_xlabel("Graph Size")
+        ax[1].set_ylabel("Memory (bytes)")
+        ax[1].legend()
+        ax[1].grid(True)
+
+        plt.tight_layout()
+        plt.show()
+
+    def generate_weighted_graph_4(self, size: int, graph_type: str) -> List[Dict[int, int]]:
+        adj = [{} for _ in range(size)]
+
+        if graph_type == "sparse":
+            for i in range(size):
+                connections = random.sample(range(size), min(2, size - 1))
+                for j in connections:
+                    if j != i and j not in adj[i]:
+                        weight = random.randint(1, 10)
+                        adj[i][j] = weight
+                        adj[j][i] = weight
+
+        elif graph_type == "dense":
+            for i in range(size):
+                for j in range(size):
+                    if i != j and random.random() < 0.7:
+                        weight = random.randint(1, 10)
+                        adj[i][j] = weight
+
+        return adj, graph_type.capitalize() + " Graph"
 
     def prim(self, adj: List[Dict[int, int]], start: int) -> Tuple[List[Tuple[int, int]], float, int]:
         mst = []
@@ -533,7 +635,7 @@ class GraphAnalyzer:
         prim_memory, kruskal_memory = [], []
 
         for size in graph_sizes:
-            adj, graph_name = self.generate_weighted_graph(size, graph_type)
+            adj, graph_name = self.generate_weighted_graph_4(size, graph_type)
 
             prim_time_avg = 0
             kruskal_time_avg = 0
@@ -574,8 +676,8 @@ if __name__ == "__main__":
 
     # lab 4
     # graph_sizes = [10, 50, 100, 200]
-    results = analyzer.analyze_shortest_path_algorithms(graph_sizes)
-    analyzer.display_results(results)
+    results = analyzer.analyze_shortest_path(graph_sizes, trials=5)
+    analyzer.display_shortest_path_results(results)
 
     # lab 5
     for gtype in ["sparse", "dense"]:
