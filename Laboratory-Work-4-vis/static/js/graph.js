@@ -9,9 +9,8 @@ let lastGraphType = "sparse";  // Changed default value
 async function generateGraph() {
   console.log("Generate graph function called");
 
-  // Debug to check if elements exist
   const graphTypeElement = document.getElementById("graphType");
-  const nodesElement = document.getElementById("nodes");
+  const nodesElement = document.getElementById("nodeCount"); // Changed from "nodes" to "nodeCount"
 
   if (!graphTypeElement || !nodesElement) {
     console.error("Could not find required elements");
